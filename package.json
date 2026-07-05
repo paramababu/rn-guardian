@@ -1,0 +1,78 @@
+{
+  "name": "rn-guardian",
+  "version": "0.1.0",
+  "description": "A fast, fully local developer quality engine for React Native — beautiful, explainable pre-commit checks. No AI, no network.",
+  "keywords": [
+    "react-native",
+    "expo",
+    "pre-commit",
+    "git-hooks",
+    "husky",
+    "lint-staged",
+    "eslint",
+    "prettier",
+    "code-quality",
+    "developer-experience"
+  ],
+  "license": "MIT",
+  "author": "Babu Paraman <babuparaman@gmail.com>",
+  "homepage": "https://github.com/paramababu/rn-guardian#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/paramababu/rn-guardian.git"
+  },
+  "bugs": {
+    "url": "https://github.com/paramababu/rn-guardian/issues"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "bin": {
+    "rn-guardian": "dist/cli.js"
+  },
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "guard:boundaries": "depcruise src --config .dependency-cruiser.cjs",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "@clack/prompts": "^0.7.0",
+    "picocolors": "^1.0.1"
+  },
+  "peerDependencies": {
+    "eslint": ">=8",
+    "prettier": ">=3"
+  },
+  "peerDependenciesMeta": {
+    "eslint": {
+      "optional": true
+    },
+    "prettier": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.7",
+    "dependency-cruiser": "^16.3.0",
+    "tsup": "^8.0.2",
+    "typescript": "^5.4.5",
+    "vitest": "^1.6.0"
+  }
+}

@@ -11,6 +11,8 @@ export interface EngineResult {
   autofixed: number;
   profile: string;
   fileCount: number;
+  /** Repo root, so callers can re-stage files after applying their own fixes. */
+  gitRoot: string;
 }
 
 export interface EngineOptions {
@@ -51,5 +53,6 @@ export async function runEngine(opts: EngineOptions): Promise<EngineResult> {
     autofixed: report.fixedIssues.size,
     profile: config.profile,
     fileCount: files.length,
+    gitRoot: ctx.gitRoot,
   };
 }

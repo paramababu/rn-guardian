@@ -78,6 +78,7 @@ rn-guardian install      # (re)install hooks (the prepare-script target)
 rn-guardian uninstall    # remove rn-guardian's managed hook blocks
 rn-guardian run          # run a tier's checks (the hook calls this)
 rn-guardian check        # read-only "what would fail?" scan of staged changes
+rn-guardian fix          # apply safe fixes; confirm & apply suggested ones (console.log, …)
 rn-guardian explain      # full problem→why→fix for each staged issue
 ```
 
@@ -106,11 +107,12 @@ interactive confirm-fix for unsafe fixes, navigation/Expo-config rules, and the
 
 ### v0.1 limitations (read before relying on it)
 
-- **Only safe fixes auto-apply.** Prettier and ESLint `--fix` run automatically
-  and re-stage. `console.log` / `debugger` are **detected but not yet
-  auto-removed** — removing them alters code, so it needs the interactive
-  confirm-fix flow, which isn't built yet (git hooks also don't get a TTY on
-  stdin). For now they're reported as warnings.
+- **Safe fixes auto-apply; unsafe ones are confirm-only.** Prettier and ESLint
+  `--fix` run automatically during a commit and re-stage. `console.log` /
+  `debugger` removal alters code, so it's applied through **`rn-guardian fix`**
+  (interactive confirmation in a real terminal, since git hooks don't get a TTY
+  on stdin) rather than silently during the commit. The pre-commit summary
+  points you to it.
 - **RN performance/accessibility rules are heuristic** — a fast brace-aware JSX
   scan, not full type-aware AST analysis. Expect the occasional false positive;
   they're warnings, never commit blockers, and honor opt-outs.

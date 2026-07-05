@@ -5,6 +5,7 @@ import { checkCommand } from "./commands/check.js";
 import { initCommand } from "./commands/init.js";
 import { installCommand, uninstallCommand } from "./commands/install.js";
 import { explainCommand } from "./commands/explain.js";
+import { fixCommand } from "./commands/fix.js";
 import type { ProfileName } from "./core/config/profiles.js";
 
 interface ParsedArgs {
@@ -48,13 +49,14 @@ ${pc.bold("Commands:")}
   uninstall            Remove rn-guardian's managed hook blocks
   run                  Run checks for a tier ${pc.dim("(the hook calls this)")}
   check                Read-only scan of staged changes ${pc.dim('("what would fail?")')}
+  fix                  Apply safe fixes; confirm & apply suggested ones ${pc.dim("(console.log, …)")}
   explain              Print the full problem→why→fix for each staged issue
   help                 Show this help
 
 ${pc.bold("Options:")}
   --tier <commit|push|ci>   Which tier to run           ${pc.dim("(default: commit)")}
   --profile <name>          init: minimal|standard|strict|enterprise
-  --yes                     init: accept defaults, no prompts
+  --yes                     init/fix: accept defaults / apply all, no prompts
   --json                    Machine-readable output (run/check)
 `;
 
@@ -77,6 +79,8 @@ async function main(): Promise<number> {
       return runCommand({ cwd, tier: tierFlag(flags), json: flags.json === true });
     case "check":
       return checkCommand({ cwd, tier: tierFlag(flags), json: flags.json === true });
+    case "fix":
+      return fixCommand({ cwd, yes: flags.yes === true });
     case "explain":
       return explainCommand(cwd);
     case "help":

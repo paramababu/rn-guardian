@@ -113,6 +113,19 @@ export function printSummary(report: RunReport, autofixed: number): void {
     process.stdout.write(`  ${parts.join(pc.dim("  ·  "))}\n`);
   }
 
+  // Suggest the fix command when remaining issues have fixes available. Fixes
+  // apply per file, so we count files (not issues) to avoid over/undercounting.
+  const fixableFiles = new Set(
+    remaining.filter((i) => i.fix.auto).map((i) => i.file),
+  ).size;
+  if (fixableFiles > 0) {
+    process.stdout.write(
+      `  ${pc.cyan("→")} ${pc.dim(
+        `${fixableFiles} file${fixableFiles === 1 ? "" : "s"} with auto-fixable issues — run `,
+      )}${pc.cyan("rn-guardian fix")}\n`,
+    );
+  }
+
   if (report.blocked) {
     process.stdout.write(
       `\n  ${pc.bgRed(pc.white(" COMMIT BLOCKED "))} ${pc.dim(

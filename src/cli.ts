@@ -90,11 +90,17 @@ async function main(): Promise<number> {
   }
 }
 
+// Set exitCode rather than calling process.exit(): when stdout is a pipe (a CI
+// job or another tool capturing --json), process.exit() can terminate before an
+// async write flushes, truncating large output. Setting exitCode lets Node drain
+// stdout and exit on its own with the right code.
 main()
-  .then((code) => process.exit(code))
+  .then((code) => {
+    process.exitCode = code;
+  })
   .catch((err) => {
     process.stderr.write(
       `${pc.red("rn-guardian crashed:")} ${err instanceof Error ? err.stack ?? err.message : String(err)}\n`,
     );
-    process.exit(1);
+    process.exitCode = 1;
   });

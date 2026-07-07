@@ -12,6 +12,79 @@ delivered. Dates are ISO (YYYY-MM-DD).
 
 _Nothing yet._
 
+## [0.1.4] — 2026-07-06
+
+Completes the **pre-push tier** (the first half of the 0.2.0 milestone) — all
+dependency-free, keeping the tool at two runtime dependencies. The remaining
+0.2.0 headline, the AST-grade injectable ESLint rule pack, is still to come.
+
+### Added
+- **Affected tests** (`affected-tests`, core, `tests` inspector). Runs the
+  project's own Jest against only the tests related to the staged files
+  (`jest --findRelatedTests`), at the `push` tier. Resolves and spawns the user's
+  local Jest — no dependency added — and skips cleanly when Jest isn't installed.
+- **Circular-import detector** (`circular-deps`, core, `hygiene` inspector). Walks
+  relative imports out from the staged files and reports any import cycle
+  (`a → b → a`), with a guarded node cap. Dependency-free; deliberately scoped to
+  relative imports (bare/aliased specifiers need a full resolver — the madge
+  dependency we chose not to take).
+- **Expo config inspector** (`expo-config`, RN plugin, `security` inspector).
+  Cross-checks `app.json`: a sensitive Android permission (CAMERA, RECORD_AUDIO,
+  location, contacts, …) with no matching iOS usage-description string in
+  `ios.infoPlist` is flagged — that combination crashes the iOS build or fails
+  App Review. Runs when `app.json` is staged; `app.config.js/ts` is noted, not
+  evaluated.
+
+### Changed
+- **TypeScript check is now incremental.** Uses `createIncrementalProgram` with a
+  `.tsbuildinfo` cache under `node_modules/.cache/rn-guardian`, so a repeat push
+  only re-checks what changed. The build-info is persisted via a write hook that
+  keeps only the `.tsbuildinfo` and discards all JS/`.d.ts` — nothing lands in
+  your tree. Falls back to a plain program when unavailable.
+
+## [0.1.3] — 2026-07-06
+
+First cut of the **Dependency Advisor** and the pre-push tier — the start of the
+0.2.0 milestone. Both checks default to the `push` tier (bundle weight and
+duplicate versions are "before it leaves your machine" concerns, not per-commit).
+
+### Added
+- **Bundle Advisor** (`bundle-advisor`, RN plugin, `dependency` inspector). Flags
+  import patterns that bloat the JS bundle: `moment` (→ day.js / date-fns), a
+  barrel `import … from "lodash"` (→ per-method or `lodash-es`), and the full /
+  `firebase/compat` SDK surface (→ modular v9+). Pure source scan; warnings only.
+- **Duplicate-dependency advisor** (`duplicate-deps`, core, `dependency`
+  inspector). Reads `package-lock.json` (lockfileVersion 1/2/3) or a classic
+  `yarn.lock` and warns when one package resolves to multiple versions (bundle
+  bloat + singleton bugs like "invalid hook call"). Runs only when a lockfile or
+  `package.json` is part of the staged change; pnpm's YAML lock is skipped with a
+  note rather than mis-parsed.
+- Both wired into the profiles: enabled at `push` for standard / strict /
+  enterprise, disabled in minimal.
+
+## [0.1.2] — 2026-07-06
+
+### Added
+- **TypeScript check.** `tsc --noEmit` via the project's own TypeScript compiler
+  (resolved locally, no hard dependency). Compiles the program once, then reports
+  only the diagnostics that land in the **staged** files — so a commit is never
+  blocked by pre-existing errors elsewhere. Defaults to the `push` tier; `strict`
+  and `enterprise` promote it to `commit`. This closes the gap where every
+  profile advertised a `typescript` check that no code implemented.
+- **`.rn-guardianignore`** (gitignore syntax) — paths matched here are removed
+  from every check. Plus a per-check `checks.<id>.exclude` glob array in config.
+  Backed by a tiny dependency-free matcher (`core/util/ignore.ts`).
+- **`explain` replay cache.** `run` now persists the report to
+  `node_modules/.cache/rn-guardian/last-run.json`; `explain` replays it instantly
+  (labelled *"(last run)"*) instead of re-scanning, falling back to a live scan
+  when no cache exists.
+
+### Fixed
+- **Fewer RN heuristic false positives.** `rn-performance` and
+  `rn-accessibility` now skip files that never import from `react-native`, and a
+  touchable wrapping a `<Text>` child is treated as labeled (RN derives the
+  accessibility label from it).
+
 ## [0.1.1] — 2026-07-05
 
 ### Added
@@ -64,10 +137,9 @@ Initial public release.
 Forward-looking version plan. Subject to change; tracked against
 [`PLAN.md`](./PLAN.md).
 
-### [0.1.2] — hardening
-- Real-world dogfood on a large Expo/bare app; publish measured timings.
-- Reduce false positives in the heuristic RN rules; `.rn-guardianignore` support.
-- `explain` replay cache (re-print the last hook run without re-scanning).
+### [0.1.2] — hardening _(shipped, see above)_
+- Remaining: real-world dogfood on a large Expo/bare app with published timings
+  (`dogfood/harness.mjs --mode full`).
 
 ### [0.2.0] — pre-push tier & more RN rules
 - Pre-push tier wired: incremental TypeScript, affected Jest, circular deps
@@ -95,6 +167,9 @@ Forward-looking version plan. Subject to change; tracked against
 - A second framework plugin (Next.js or Node) proving the core is truly generic.
 - Quality-trend tracking across commits.
 
-[Unreleased]: https://github.com/paramababu/rn-guardian/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/paramababu/rn-guardian/compare/v0.1.4...HEAD
+[0.1.4]: https://github.com/paramababu/rn-guardian/compare/v0.1.3...v0.1.4
+[0.1.3]: https://github.com/paramababu/rn-guardian/compare/v0.1.2...v0.1.3
+[0.1.2]: https://github.com/paramababu/rn-guardian/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/paramababu/rn-guardian/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/paramababu/rn-guardian/releases/tag/v0.1.0

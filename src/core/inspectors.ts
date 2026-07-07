@@ -10,6 +10,7 @@ export const INSPECTORS: Record<InspectorId, InspectorMeta> = {
   security: { id: "security", title: "Security Inspector" },
   dependency: { id: "dependency", title: "Dependency Advisor" },
   types: { id: "types", title: "Type Checking" },
+  tests: { id: "tests", title: "Affected Tests" },
 };
 
 export function inspectorTitle(id: InspectorId): string {

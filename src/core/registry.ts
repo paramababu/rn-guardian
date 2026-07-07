@@ -3,10 +3,16 @@ import { prettierCheck } from "./checks/prettier.js";
 import { eslintCheck } from "./checks/eslint.js";
 import { consoleLogCheck } from "./checks/console-log.js";
 import { mergeMarkersCheck } from "./checks/merge-markers.js";
+import { typescriptCheck } from "./checks/typescript.js";
+import { duplicateDepsCheck } from "./checks/duplicate-deps.js";
+import { circularDepsCheck } from "./checks/circular-deps.js";
+import { affectedTestsCheck } from "./checks/jest.js";
 
 /**
  * Framework-agnostic checks that always ship with the core. Ordered so the
- * reporter output reads naturally: format → lint → hygiene.
+ * reporter output reads naturally: format → lint → hygiene → types →
+ * dependency. TypeScript and duplicate-deps default to the `push` tier — the
+ * expensive / dependency-change checks belong before a push, not every commit.
  *
  * NOTE: this file must never import from ../plugins (enforced by
  * .dependency-cruiser.cjs). Plugins are supplied to `assembleChecks` at runtime.
@@ -16,6 +22,10 @@ export const CORE_CHECKS: Check[] = [
   eslintCheck,
   consoleLogCheck,
   mergeMarkersCheck,
+  typescriptCheck,
+  duplicateDepsCheck,
+  circularDepsCheck,
+  affectedTestsCheck,
 ];
 
 /**

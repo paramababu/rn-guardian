@@ -66,7 +66,15 @@ function indent(text: string, pad: number): string {
 export function printIssues(report: RunReport): void {
   // Only show issues that still need attention; auto-fixed ones are summarized
   // by the "Auto-fixed N, re-staged" line instead of printed as problems.
-  const remaining = report.remaining;
+  printGroupedIssues(report.remaining);
+}
+
+/**
+ * Render a flat issue list grouped by inspector — the shared body behind both
+ * the live `run` output and the cache-replayed `explain` output.
+ */
+export function printGroupedIssues(issues: Issue[]): void {
+  const remaining = issues;
   if (remaining.length === 0) return;
 
   // Group by inspector for the "Performance Inspector — N issues" framing.

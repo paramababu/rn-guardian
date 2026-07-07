@@ -27,28 +27,36 @@ adding surface area.
 - **Acceptance:** measured warm pre-commit ≤ 3s on ≥ 200 source files with the
   app's real ESLint config; publish the numbers in the CHANGELOG.
 
-### ⬜ Ignore file support
-- Add `.rn-guardianignore` (gitignore syntax) honored by `core/git/staged.ts`
-  when building the staged-file set, plus a `checks.<id>.exclude` glob option in
-  config.
-- Files: `src/core/git/staged.ts`, `src/core/config/load.ts`, new
-  `src/core/util/ignore.ts` (tiny glob matcher, no dep).
-- **Acceptance:** a path in `.rn-guardianignore` never appears in any check.
+### ✅ Ignore file support
+- `.rn-guardianignore` (gitignore syntax) honored by `core/git/staged.ts` when
+  building the staged-file set, plus a `checks.<id>.exclude` glob option in
+  config (applied per-check in the runner).
+- Files: `src/core/util/ignore.ts` (dependency-free matcher), `staged.ts`,
+  `config/load.ts`, `runner/runner.ts`, `types.ts`.
+- Tests: `test/ignore.test.ts`, exclude case in `test/runner.test.ts`.
 
-### ⬜ Reduce heuristic false positives
-- `rn-performance` / `rn-accessibility`: skip files that don't import from
-  `react-native`; treat a touchable with a `<Text>` child as labeled.
+### ✅ Reduce heuristic false positives
+- `rn-performance` / `rn-accessibility` skip files that don't import from
+  `react-native`; a touchable with a `<Text>` child is treated as labeled.
 - Files: `src/plugins/react-native/checks/{performance,accessibility}.ts`,
-  `src/plugins/react-native/jsx.ts` (add a cheap child-text scan).
-- **Acceptance:** new fixtures for the false-positive cases pass clean.
+  `jsx.ts` (`importsReactNative`, `hasTextChild`, element bounds).
+- Tests: new cases in `test/rn-checks.test.ts`.
 
-### ⬜ `explain` replay cache
-- Persist the last run's report JSON to
-  `node_modules/.cache/rn-guardian/last-run.json`; `explain` reads it instead of
-  re-scanning.
-- Files: `src/commands/{run,explain}.ts`, new `src/core/cache.ts`.
-- **Acceptance:** `explain` after a `run` prints the same findings without
-  re-executing checks (assert via a timing/marker).
+### ✅ `explain` replay cache
+- Persists the last run to `node_modules/.cache/rn-guardian/last-run.json`;
+  `explain` replays it (labelled "(last run)") instead of re-scanning, falling
+  back to a live scan when absent. The non-serializable autofix closure is
+  stripped before writing.
+- Files: new `src/core/cache.ts`, `commands/{run,explain}.ts`,
+  `reporter/terminal.ts` (`printGroupedIssues`), `engine.ts` (`packageRoot`).
+- Tests: `test/cache.test.ts`.
+
+### ✅ TypeScript check _(was slated for 0.2.0; pulled forward)_
+- Every profile referenced a `typescript` check that no code implemented — the
+  strict/enterprise "TypeScript at pre-commit" promise was a no-op. Implemented
+  `src/core/checks/typescript.ts` (`tsc --noEmit` via the compiler API, local
+  resolution, staged-file-scoped diagnostics), registered in `registry.ts`.
+- Tests: `test/typescript.test.ts`.
 
 ---
 
@@ -57,18 +65,22 @@ adding surface area.
 Goal: turn on the second tier and upgrade the RN rules where heuristics aren't
 good enough.
 
-### ⬜ Pre-push tier wired end-to-end
-- Implement checks at `tier: "push"`: incremental TypeScript
-  (`tsc --noEmit --incremental`, cache under `node_modules/.cache/rn-guardian/`),
-  affected Jest (`--findRelatedTests --changedSince`), circular deps (madge on
-  the changed subgraph), duplicate deps (lockfile scan), Bundle Advisor
-  (moment→dayjs, lodash→lodash-es, full firebase imports).
-- Files: new `src/core/checks/typescript.ts`, `src/plugins/react-native/checks/`
-  (bundle-advisor, jest, circular), register in `registry.ts` / plugin.
-- The pre-push hook block already exists (`core/hooks/install.ts`) — just needs
-  these checks enabled at the push tier.
-- **Acceptance:** `run --tier push` executes them; commit path stays untouched
-  and under budget.
+### ✅ Pre-push tier wired end-to-end
+Checks at `tier: "push"`, all dependency-free (stayed at 2 runtime deps):
+- ✅ **Bundle Advisor** (moment, lodash barrel, full/compat firebase).
+  `src/plugins/react-native/checks/bundle-advisor.ts`. (0.1.3)
+- ✅ **Duplicate deps** (lockfile scan, npm v1/2/3 + classic yarn).
+  `src/core/checks/duplicate-deps.ts`. (0.1.3)
+- ✅ **TypeScript** — whole-program, staged-scoped, now **incremental** with a
+  `.tsbuildinfo` cache under `node_modules/.cache/rn-guardian/`.
+  `src/core/checks/typescript.ts`. (0.1.2 / 0.1.4)
+- ✅ **Affected Jest** (`--findRelatedTests`, spawns the project's local jest,
+  skips when absent). `src/core/checks/jest.ts`. (0.1.4)
+- ✅ **Circular deps** — custom DFS over relative imports on the changed
+  subgraph (chose this over the madge dependency).
+  `src/core/checks/circular-deps.ts`. (0.1.4)
+- Verified: `run --tier push` executes them; the commit path is untouched
+  (push-only in every profile). Also added the Expo config inspector (below).
 
 ### ⬜ RN ESLint rule pack (injectable)
 - Ship the heuristic rules as real ESLint rules under
@@ -81,12 +93,12 @@ good enough.
 - **Acceptance:** rules fire through the project's ESLint; `rn-performance`
   heuristic check defers to them when present.
 
-### ⬜ Navigation & Expo inspectors
-- React Navigation: unregistered / duplicate / unused screen detection by parsing
-  navigator definitions and `navigation.navigate("…")` call sites.
-- Expo: `app.json` / `app.config.*` — unused Android permissions, missing iOS
-  usage-description strings.
-- Files: new checks under `src/plugins/react-native/checks/`.
+### 🔶 Navigation & Expo inspectors
+- ✅ **Expo** `app.json` — cross-checks sensitive Android permissions against
+  missing iOS usage-description strings.
+  `src/plugins/react-native/checks/expo-config.ts`. (0.1.4)
+- ⬜ React Navigation: unregistered / duplicate / unused screen detection —
+  wants an AST for accuracy; deferred with the ESLint rule pack.
 
 ---
 

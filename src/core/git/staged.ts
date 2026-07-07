@@ -2,6 +2,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import path from "node:path";
 import type { StagedFile } from "../../types.js";
+import { loadIgnoreFile } from "../util/ignore.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -47,9 +48,13 @@ export async function getStagedFiles(gitRoot: string): Promise<StagedFile[]> {
       .filter(Boolean),
   );
 
+  // `.rn-guardianignore` (gitignore syntax) removes paths from every check.
+  const ignore = loadIgnoreFile(gitRoot);
+
   for (const { status, filePath } of parsed) {
     const letter = status[0] as StagedFile["status"];
     if (!STATUS_LETTERS.has(letter)) continue;
+    if (!ignore.empty && ignore.ignores(filePath)) continue;
     files.push({
       path: filePath,
       absPath: path.join(gitRoot, filePath),

@@ -13,6 +13,8 @@ export interface EngineResult {
   fileCount: number;
   /** Repo root, so callers can re-stage files after applying their own fixes. */
   gitRoot: string;
+  /** Nearest package root — where the `node_modules/.cache` lives. */
+  packageRoot: string;
 }
 
 export interface EngineOptions {
@@ -54,5 +56,6 @@ export async function runEngine(opts: EngineOptions): Promise<EngineResult> {
     profile: config.profile,
     fileCount: files.length,
     gitRoot: ctx.gitRoot,
+    packageRoot: ctx.packageRoot,
   };
 }

@@ -7,6 +7,7 @@ import type {
   Tier,
 } from "../../types.js";
 import type { ResolvedConfig } from "../config/load.js";
+import { compileIgnore } from "../util/ignore.js";
 
 export interface CheckRun {
   check: Check;
@@ -68,10 +69,17 @@ export async function runChecks(
     if (cfg.tier !== opts.tier) continue;
     if (!check.appliesTo(ctx)) continue;
 
+    // Per-check `exclude` globs hide files from this check only.
+    let checkFiles = files;
+    if (cfg.exclude && cfg.exclude.length > 0) {
+      const ex = compileIgnore(cfg.exclude);
+      checkFiles = files.filter((f) => !ex.ignores(f.path));
+    }
+
     opts.onCheckStart?.(check);
     let result: CheckResult;
     try {
-      result = await check.run(files, ctx, cfg);
+      result = await check.run(checkFiles, ctx, cfg);
     } catch (err) {
       result = {
         status: "fail",

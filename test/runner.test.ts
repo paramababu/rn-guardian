@@ -172,6 +172,29 @@ describe("runner", () => {
     expect(report.fixedIssues.size).toBe(0);
   });
 
+  it("hides files matching a check's exclude globs", async () => {
+    const twoFiles: StagedFile[] = [
+      { path: "src/a.ts", absPath: "/src/a.ts", status: "M", partiallyStaged: false },
+      { path: "src/a.gen.ts", absPath: "/src/a.gen.ts", status: "M", partiallyStaged: false },
+    ];
+    let seen: string[] = [];
+    const checks: Check[] = [
+      check("peek", "commit", () => ({ status: "pass", issues: [], durationMs: 0 })),
+    ];
+    checks[0]!.run = async (fs) => {
+      seen = fs.map((f) => f.path);
+      return { status: "pass", issues: [], durationMs: 0 };
+    };
+    await runChecks(
+      checks,
+      twoFiles,
+      ctx,
+      resolveConfig({ checks: { peek: { exclude: ["*.gen.ts"] } } }),
+      { tier: "commit", autofix: false },
+    );
+    expect(seen).toEqual(["src/a.ts"]);
+  });
+
   it("survives a check that throws", async () => {
     const checks: Check[] = [
       {

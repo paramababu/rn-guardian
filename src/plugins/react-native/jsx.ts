@@ -20,6 +20,10 @@ export interface JsxElement {
   /** Text of the attributes (between the tag name and the closing `>`). */
   attrs: string;
   selfClosing: boolean;
+  /** Index of the opening `<` in the source. */
+  start: number;
+  /** Index just after the `>` that ends the opening tag. */
+  openEnd: number;
 }
 
 const IDENT = /[A-Za-z0-9_$]/;
@@ -60,6 +64,8 @@ export function scanJsxElements(
       line: lineAt(content, i),
       attrs,
       selfClosing,
+      start: i,
+      openEnd: end + 1,
     });
 
     i = end; // continue scanning after this tag
@@ -104,4 +110,30 @@ function lineAt(content: string, index: number): number {
 /** Does the attribute text contain a given prop (e.g. "keyExtractor")? */
 export function hasProp(attrs: string, prop: string): boolean {
   return new RegExp(`(^|\\s)${prop}\\s*[=}]`).test(attrs) || new RegExp(`(^|\\s)${prop}(\\s|$)`).test(attrs);
+}
+
+/**
+ * Does the file import from `react-native` itself? RN heuristic checks only make
+ * sense for actual RN component files, so we skip files that never pull the
+ * framework in (plain utilities, web components, tests). A subpath import of a
+ * *different* package like `react-native-gesture-handler` deliberately does not
+ * match — the quote must sit right after `react-native`.
+ */
+export function importsReactNative(content: string): boolean {
+  return /(?:from\s+|require\(\s*)['"]react-native['"]/.test(content);
+}
+
+/**
+ * Cheap check: does `el` (a non-self-closing element) contain a `<Text>` child
+ * before its matching close tag? RN derives an accessibility label from a
+ * touchable's `<Text>` descendant, so such a control is already labeled and
+ * should not be flagged. Same-tag nesting is ignored (rare) — this scans to the
+ * first `</tag>` after the opening tag.
+ */
+export function hasTextChild(content: string, el: JsxElement): boolean {
+  if (el.selfClosing) return false;
+  const close = content.indexOf(`</${el.tag}`, el.openEnd);
+  const region =
+    close === -1 ? content.slice(el.openEnd) : content.slice(el.openEnd, close);
+  return /<Text[\s/>]/.test(region);
 }

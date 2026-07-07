@@ -16,7 +16,12 @@ export interface GuardianConfig {
   tiers?: Partial<Record<Tier, boolean>>;
   checks?: Record<
     string,
-    Partial<{ enabled: boolean; tier: Tier; options: Record<string, unknown> }>
+    Partial<{
+      enabled: boolean;
+      tier: Tier;
+      options: Record<string, unknown>;
+      exclude: string[];
+    }>
   >;
   rules?: Record<string, "off" | "warn" | "error">;
   ci?: Record<string, unknown>;
@@ -77,8 +82,9 @@ export function resolveConfig(cfg: GuardianConfig): ResolvedConfig {
         ...(fromProfile?.options ?? {}),
         ...(fromUser?.options ?? {}),
       };
+      const exclude = fromUser?.exclude ?? [];
 
-      return { enabled, tier, options };
+      return { enabled, tier, options, exclude };
     },
   };
 }

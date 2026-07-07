@@ -1,7 +1,7 @@
 import type { Check, Issue } from "../../../types.js";
 import { readFileSafe, sourceFiles, toLines } from "../../../core/util/files.js";
 import { docs } from "../../../core/docs.js";
-import { scanJsxElements, hasProp } from "../jsx.js";
+import { scanJsxElements, hasProp, importsReactNative } from "../jsx.js";
 
 const LIST_TAGS = ["FlatList", "SectionList", "FlashList", "VirtualizedList"];
 
@@ -29,6 +29,7 @@ export const performanceCheck: Check = {
       if (!isJsxFile(file.path)) continue;
       const content = readFileSafe(file.absPath);
       if (content === null) continue;
+      if (!importsReactNative(content)) continue;
       const lines = toLines(content);
 
       // 1. Inline style objects — line-accurate, robust regex.

@@ -7,6 +7,7 @@ import {
   printSummary,
 } from "../core/reporter/terminal.js";
 import { toJson } from "../core/reporter/json.js";
+import { writeLastRun } from "../core/cache.js";
 
 export interface RunArgs {
   cwd: string;
@@ -22,10 +23,18 @@ export async function runCommand(args: RunArgs): Promise<number> {
   const interactive = process.stdout.isTTY === true && !args.json;
   const autofix = interactive;
 
-  const { report, autofixed, profile, fileCount } = await runEngine({
+  const { report, autofixed, profile, fileCount, packageRoot } = await runEngine({
     cwd: args.cwd,
     tier: args.tier,
     autofix,
+  });
+
+  // Persist for `explain` to replay without re-scanning.
+  writeLastRun(packageRoot, {
+    tier: args.tier,
+    fileCount,
+    blocked: report.blocked,
+    issues: report.remaining,
   });
 
   if (args.json) {

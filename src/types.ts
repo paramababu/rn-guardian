@@ -16,7 +16,8 @@ export type InspectorId =
   | "accessibility" // RN a11y
   | "security" // secrets, insecure storage, http
   | "dependency" // heavy deps, duplicates
-  | "types"; // TypeScript
+  | "types" // TypeScript
+  | "tests"; // affected unit tests
 
 export interface InspectorMeta {
   id: InspectorId;
@@ -121,6 +122,12 @@ export interface CheckConfig {
   tier: Tier;
   /** Arbitrary per-check options (e.g. large-assets maxKb). */
   options: Record<string, unknown>;
+  /**
+   * Gitignore-style globs; files matching any are hidden from this check only
+   * (on top of the repo-wide `.rn-guardianignore`). Empty/absent = no extra
+   * exclusions.
+   */
+  exclude?: string[];
 }
 
 export interface Check {

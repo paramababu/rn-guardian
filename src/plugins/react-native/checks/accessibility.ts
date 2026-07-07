@@ -1,7 +1,7 @@
 import type { Check, Issue } from "../../../types.js";
 import { readFileSafe, sourceFiles } from "../../../core/util/files.js";
 import { docs } from "../../../core/docs.js";
-import { scanJsxElements, hasProp } from "../jsx.js";
+import { scanJsxElements, hasProp, importsReactNative, hasTextChild } from "../jsx.js";
 
 const TOUCHABLES = [
   "TouchableOpacity",
@@ -43,9 +43,12 @@ export const accessibilityCheck: Check = {
       if (!isJsxFile(file.path)) continue;
       const content = readFileSafe(file.absPath);
       if (content === null) continue;
+      if (!importsReactNative(content)) continue;
 
       for (const el of scanJsxElements(content, TOUCHABLES)) {
         if (isOptedOut(el.attrs) || hasLabel(el.attrs)) continue;
+        // A touchable wrapping a <Text> child gets its label from that text.
+        if (hasTextChild(content, el)) continue;
         issues.push(touchableNoLabel(file.path, el.line, el.tag));
       }
 

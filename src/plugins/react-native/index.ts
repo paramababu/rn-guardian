@@ -4,6 +4,8 @@ import { secretsCheck } from "./checks/secrets.js";
 import { largeAssetsCheck } from "./checks/large-assets.js";
 import { performanceCheck } from "./checks/performance.js";
 import { accessibilityCheck } from "./checks/accessibility.js";
+import { bundleAdvisorCheck } from "./checks/bundle-advisor.js";
+import { expoConfigCheck } from "./checks/expo-config.js";
 
 /**
  * The React Native plugin — the first `Plugin` rn-guardian ships. Everything
@@ -22,5 +24,7 @@ export const reactNativePlugin: Plugin = {
     largeAssetsCheck,
     performanceCheck,
     accessibilityCheck,
+    bundleAdvisorCheck,
+    expoConfigCheck,
   ],
 };

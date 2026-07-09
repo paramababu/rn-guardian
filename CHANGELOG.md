@@ -12,6 +12,65 @@ delivered. Dates are ISO (YYYY-MM-DD).
 
 _Nothing yet._
 
+## [0.2.1] — 2026-07-09
+
+First cut of the **0.3.0 "CI & reporting" milestone**: the `rn-guardian ci`
+command. Still dependency-free (two runtime deps).
+
+### Added
+- **`rn-guardian ci`** (`src/commands/ci.ts`) — a tier-3 sweep with no time
+  budget. Runs **every enabled check across all tiers at once** over the PR diff
+  (`git diff <base>...HEAD`, merge-base scoped) — or the whole tree with `--all`.
+  Base ref resolves from `--base`, then `GITHUB_BASE_REF`, then the usual main
+  branches; a shallow checkout falls back to a full scan. Never autofixes.
+- **GitHub Actions output** (`src/core/reporter/github.ts`). Each finding becomes
+  an inline `::error`/`::warning` annotation on the PR diff (properly escaped
+  workflow commands), and a markdown table is appended to `$GITHUB_STEP_SUMMARY`.
+  Annotations turn on automatically inside Actions (`GITHUB_ACTIONS=true`) or with
+  `--annotate`; `--json` emits the full machine-readable report.
+- **Team-rule gates** from the config `"ci"` block (`src/core/ci/gates.ts`):
+  `ci.failOn: "warning"` promotes any warning to a build failure, and
+  `ci.maxWarnings: N` caps remaining warnings. A tripped gate exits non-zero and
+  annotates the PR at the job level. (Coverage / no-any / bundle-size gates are
+  still planned — they need heavier machinery.)
+
+### Changed
+- The runner gained a **multi-tier sweep** (`RunOptions.runTiers`) so `ci` can run
+  commit + push + ci checks in one pass; the single-tier hook path is unchanged.
+- `reportToObject` split out of `toJson` so `ci` can extend the report with its
+  `scope` and `gates` result.
+
+## [0.2.0] — 2026-07-09
+
+Completes the **0.2.0 milestone**: the pre-push tier (shipped in 0.1.3/0.1.4) plus
+the headline **AST-grade React Native rule pack**. Still zero network, still no
+AI — ESLint and its parser are optional peer tools resolved from the project.
+
+### Added
+- **Injectable RN ESLint rule pack** (`rn-eslint-rules`, RN plugin). The RN
+  performance and accessibility inspectors now ship as real ESLint rules
+  (`src/plugins/react-native/eslint-plugin/`) — `flatlist-key-extractor`,
+  `no-inline-style-object`, `no-anonymous-render-callback`, `no-nested-scrollview`
+  (new), `touchable-accessibility-label`, `image-accessibility`. They run in an
+  isolated instance of the **project's own ESLint** (resolved locally, so your
+  exact version and parser), giving true AST accuracy in place of the JSX-scanner
+  heuristics. Findings keep the full five-part shape (problem → why → impact →
+  fix) — the rule renders the problem, `eslint-plugin/meta.ts` supplies the rest.
+- **`no-nested-scrollview`** — a virtualized list (FlatList/SectionList/…) nested
+  inside a same-axis `ScrollView` silently disables windowing (RN warns about this
+  at runtime); the AST rule catches it statically. No heuristic equivalent.
+
+### Changed
+- **Heuristics defer to the AST rules when available.** `enrichReactNative`
+  probes for ESLint + a JSX-capable parser and sets `framework.astRules`; when
+  set, the `rn-performance` / `rn-accessibility` JSX-scanner checks stand down and
+  the AST pack runs instead — no double-reporting. When ESLint (or, for a
+  TypeScript project, `@typescript-eslint/parser`) isn't resolvable, the
+  dependency-free heuristics run exactly as before. Enabled in standard / strict /
+  enterprise; off in minimal.
+- Works under both ESLint config systems: flat config (v9+) and legacy eslintrc
+  (v8), injected programmatically — nothing is written to the user's config.
+
 ## [0.1.4] — 2026-07-06
 
 Completes the **pre-push tier** (the first half of the 0.2.0 milestone) — all
@@ -141,17 +200,16 @@ Forward-looking version plan. Subject to change; tracked against
 - Remaining: real-world dogfood on a large Expo/bare app with published timings
   (`dogfood/harness.mjs --mode full`).
 
-### [0.2.0] — pre-push tier & more RN rules
-- Pre-push tier wired: incremental TypeScript, affected Jest, circular deps
-  (madge), duplicate deps, the Bundle Advisor.
-- Custom RN ESLint rule pack shipped as an injectable plugin (upgrading the
-  current heuristic checks to AST-grade where it pays off).
-- Navigation (React Navigation) and Expo-config inspectors.
+### [0.2.0] — pre-push tier & more RN rules _(shipped, see above)_
+- Remaining: React Navigation inspector (unregistered / duplicate / unused
+  screens) — deferred; it wants the same AST that the ESLint rule pack now
+  establishes, so it slots in next.
 
 ### [0.3.0] — CI & reporting
-- `rn-guardian ci`: full suite, JSON + GitHub annotations, coverage/team-rule
-  gates (no-any, max bundle).
-- HTML report.
+- ✅ `rn-guardian ci`: full suite over the PR diff, JSON + GitHub annotations,
+  `failOn` / `maxWarnings` team-rule gates. _(shipped in 0.2.1, see above)_
+- Remaining: coverage / no-any / max-bundle gates, and the self-contained HTML
+  report (`src/core/reporter/html.ts`).
 
 ### [0.5.0] — quality score
 - Per-inspector sub-scores → overall score, each number traceable to specific
@@ -167,7 +225,9 @@ Forward-looking version plan. Subject to change; tracked against
 - A second framework plugin (Next.js or Node) proving the core is truly generic.
 - Quality-trend tracking across commits.
 
-[Unreleased]: https://github.com/paramababu/rn-guardian/compare/v0.1.4...HEAD
+[Unreleased]: https://github.com/paramababu/rn-guardian/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/paramababu/rn-guardian/compare/v0.2.0...v0.2.1
+[0.2.0]: https://github.com/paramababu/rn-guardian/compare/v0.1.4...v0.2.0
 [0.1.4]: https://github.com/paramababu/rn-guardian/compare/v0.1.3...v0.1.4
 [0.1.3]: https://github.com/paramababu/rn-guardian/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/paramababu/rn-guardian/compare/v0.1.1...v0.1.2

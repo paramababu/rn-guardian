@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { ProjectContext } from "../../types.js";
+import { astRulesAvailable } from "./checks/eslint-rules.js";
 
 function readJson(p: string): Record<string, any> | null {
   try {
@@ -42,5 +43,6 @@ export function enrichReactNative(ctx: ProjectContext): void {
     id: "react-native",
     variant: expo || hasAppJson ? "expo" : "bare",
     version: rn?.replace(/[^\d.]/g, "") || undefined,
+    astRules: astRulesAvailable(ctx),
   };
 }

@@ -23,3 +23,20 @@ export async function importLocal<T = unknown>(
     return null;
   }
 }
+
+/**
+ * Resolve a package to its on-disk path as installed in the target project,
+ * without importing it. Returns null when it isn't installed. Used to detect and
+ * point ESLint at the project's own parser (a string path for eslintrc configs).
+ */
+export function resolveLocalPath(
+  packageRoot: string,
+  name: string,
+): string | null {
+  try {
+    const require = createRequire(path.join(packageRoot, "package.json"));
+    return require.resolve(name);
+  } catch {
+    return null;
+  }
+}

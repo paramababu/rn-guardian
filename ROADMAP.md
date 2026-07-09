@@ -82,16 +82,21 @@ Checks at `tier: "push"`, all dependency-free (stayed at 2 runtime deps):
 - Verified: `run --tier push` executes them; the commit path is untouched
   (push-only in every profile). Also added the Expo config inspector (below).
 
-### ⬜ RN ESLint rule pack (injectable)
-- Ship the heuristic rules as real ESLint rules under
-  `src/plugins/react-native/eslint-plugin/`, injected into the user's ESLint run
-  (already the plan in `eslint.ts`), giving AST accuracy. Keep the JSX-scanner
-  versions as a fallback when ESLint isn't installed.
+### ✅ RN ESLint rule pack (injectable) _(0.2.0)_
+- Heuristic rules shipped as real ESLint rules under
+  `src/plugins/react-native/eslint-plugin/` (rules + shared `meta.ts`), injected
+  into an isolated run of the project's own ESLint by a new `rn-eslint-rules`
+  check (`checks/eslint-rules.ts`) — flat (v9) and eslintrc (v8) both supported.
+  The JSX-scanner versions remain the fallback when ESLint/parser isn't
+  resolvable.
 - Rules: `flatlist-key-extractor`, `no-inline-style-object`,
   `no-anonymous-render-callback`, `no-nested-scrollview`,
   `touchable-accessibility-label`, `image-accessibility`.
-- **Acceptance:** rules fire through the project's ESLint; `rn-performance`
-  heuristic check defers to them when present.
+- Deferral: `enrichReactNative` sets `framework.astRules`; `rn-performance` /
+  `rn-accessibility` `appliesTo` returns false when it's set, so exactly one form
+  runs. Enabled in standard/strict/enterprise profiles.
+- Tests: `test/eslint-rules.test.ts` (RuleTester per rule),
+  `test/eslint-rules-check.test.ts` (real ESLint injection + deferral).
 
 ### 🔶 Navigation & Expo inspectors
 - ✅ **Expo** `app.json` — cross-checks sensitive Android permissions against
@@ -104,14 +109,19 @@ Checks at `tier: "push"`, all dependency-free (stayed at 2 runtime deps):
 
 ## 0.3.0 — CI command & reporting
 
-### ⬜ `rn-guardian ci`
-- Tier-3 runner (no budget): full ESLint/tsc/Jest with coverage, dead code
-  (knip), dependency audit, bundle-size estimate + diff vs. base branch.
-- Output: JSON + **GitHub Actions annotations** (`::error file=…,line=…::`).
-- Enterprise team-rule gates from config: `ci.coverage`, `ci.noAny`,
-  `ci.maxBundleMb`.
-- Files: new `src/commands/ci.ts`, `src/core/reporter/github.ts`.
-- **Acceptance:** a failing gate exits non-zero and annotates the PR.
+### 🔶 `rn-guardian ci`
+- ✅ Tier-3 runner (no budget): sweeps every enabled check across all tiers over
+  the PR diff (`git diff <base>...HEAD`) or the full tree (`--all`). Base ref
+  resolves from `--base` / `GITHUB_BASE_REF` / main branches, with a full-scan
+  fallback. `src/commands/ci.ts`, runner `runTiers`, git `getChangedFiles` /
+  `getAllSourceFiles` / `resolveBaseRef`. (0.2.1)
+- ✅ Output: JSON + **GitHub Actions annotations** (`::error file=…,line=…::`) +
+  `$GITHUB_STEP_SUMMARY` table. `src/core/reporter/github.ts`. (0.2.1)
+- ✅ Team-rule gates `ci.failOn` / `ci.maxWarnings`. `src/core/ci/gates.ts`. A
+  tripped gate exits non-zero and annotates the PR. **Acceptance met.** (0.2.1)
+- ⬜ Remaining gates: `ci.coverage` (parse the project's Jest coverage summary),
+  `ci.noAny`, `ci.maxBundleMb` — each needs heavier machinery / project tooling.
+- Tests: `test/{ci-command,ci-gates,github-reporter}.test.ts`.
 
 ### ⬜ HTML report
 - `src/core/reporter/html.ts` — self-contained HTML (inline CSS) summarizing a

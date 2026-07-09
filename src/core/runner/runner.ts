@@ -38,6 +38,12 @@ export interface RunReport {
 
 export interface RunOptions {
   tier: Tier;
+  /**
+   * When set, run every enabled check whose resolved tier is in this set — a
+   * multi-tier sweep for `ci` (commit + push + ci at once), rather than the
+   * single-tier gate a hook runs. `tier` still labels the report.
+   */
+  runTiers?: Tier[];
   /** Apply safe autofixes automatically. Disabled in CI/non-TTY by caller. */
   autofix: boolean;
   /** Notify listeners as each check starts/finishes (for the live reporter). */
@@ -62,11 +68,12 @@ export async function runChecks(
   const fixedPaths = new Set<string>();
   const fixed = new Set<Issue>();
   const start = Date.now();
+  const tierSet = opts.runTiers ? new Set(opts.runTiers) : undefined;
 
   for (const check of checks) {
     const cfg = config.forCheck(check);
     if (!cfg.enabled) continue;
-    if (cfg.tier !== opts.tier) continue;
+    if (tierSet ? !tierSet.has(cfg.tier) : cfg.tier !== opts.tier) continue;
     if (!check.appliesTo(ctx)) continue;
 
     // Per-check `exclude` globs hide files from this check only.

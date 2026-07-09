@@ -20,7 +20,12 @@ export interface EngineResult {
 export interface EngineOptions {
   cwd: string;
   tier: Tier;
-  /** Override the staged-file set (used by `check` to scan everything). */
+  /**
+   * Run every check across these tiers at once (the `ci` sweep). Omit for the
+   * single-tier behavior a git hook uses.
+   */
+  tiers?: Tier[];
+  /** Override the staged-file set (used by `check`/`ci` to scan a wider set). */
   files?: Awaited<ReturnType<typeof getStagedFiles>>;
   autofix: boolean;
   onCheckStart?: Parameters<typeof runChecks>[4]["onCheckStart"];
@@ -41,6 +46,7 @@ export async function runEngine(opts: EngineOptions): Promise<EngineResult> {
 
   const report = await runChecks(checks, files, ctx, config, {
     tier: opts.tier,
+    runTiers: opts.tiers,
     autofix: opts.autofix,
     onCheckStart: opts.onCheckStart,
     onCheckDone: opts.onCheckDone,

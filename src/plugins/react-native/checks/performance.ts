@@ -20,7 +20,9 @@ export const performanceCheck: Check = {
   id: "rn-performance",
   inspector: "performance",
   tier: "commit",
-  appliesTo: (ctx) => ctx.framework?.id === "react-native",
+  // Defers to the AST-grade ESLint rules (rn-eslint-rules) when those can run.
+  appliesTo: (ctx) =>
+    ctx.framework?.id === "react-native" && !ctx.framework.astRules,
   async run(files) {
     const start = Date.now();
     const issues: Issue[] = [];

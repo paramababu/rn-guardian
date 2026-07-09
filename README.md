@@ -78,11 +78,31 @@ rn-guardian install      # (re)install hooks (the prepare-script target)
 rn-guardian uninstall    # remove rn-guardian's managed hook blocks
 rn-guardian run          # run a tier's checks (the hook calls this)
 rn-guardian check        # read-only "what would fail?" scan of staged changes
+rn-guardian ci           # full sweep over the PR diff, gates + GitHub annotations
 rn-guardian fix          # apply safe fixes; confirm & apply suggested ones (console.log, …)
 rn-guardian explain      # full problem→why→fix for each staged issue
 ```
 
-Add `--json` to `run`/`check` for machine-readable output.
+Add `--json` to `run`/`check`/`ci` for machine-readable output.
+
+### In CI (GitHub Actions)
+
+`rn-guardian ci` runs every check across all tiers (no time budget) over the PR
+diff — `git diff <base>...HEAD` by default, or the whole tree with `--all` — and
+prints inline `::error`/`::warning` annotations plus a job-summary table.
+Annotations turn on automatically inside Actions.
+
+```yaml
+- run: npx rn-guardian ci        # exits non-zero on an error or a tripped gate
+```
+
+Team-rule gates live in the config's `"ci"` block:
+
+```json
+{ "ci": { "failOn": "warning", "maxWarnings": 0 } }
+```
+
+`failOn: "warning"` makes any warning fail the build; `maxWarnings: N` caps them.
 
 ## What it checks today
 
@@ -94,16 +114,19 @@ React Native plugin:
 - **Security** — tokens/secrets in AsyncStorage, hardcoded JWTs & API keys,
   plaintext `http://` endpoints.
 - **Performance** — `FlatList` missing `keyExtractor`, inline `style={{…}}`
-  objects, anonymous inline `renderItem`, oversized bundled images.
+  objects, anonymous inline `renderItem`, a virtualized list nested inside a
+  `ScrollView`, oversized bundled images.
 - **Accessibility** — touchables and images with no `accessibilityLabel`.
 
-The performance/accessibility rules run through a small brace-aware JSX scanner
-(not regex), so they correctly ignore `=>` and `>` inside expressions. They're
-advisory (warnings), and honor explicit opt-outs like `accessible={false}`.
+The performance/accessibility rules ship as real **ESLint rules** (AST-grade) and
+run through your project's own ESLint when it's installed — so they see the true
+syntax tree, not text. When ESLint (or a JSX parser) isn't resolvable they fall
+back to a small brace-aware JSX scanner that still correctly ignores `=>` and `>`
+inside expressions. Either way they're advisory (warnings) and honor explicit
+opt-outs like `accessible={false}`.
 
-Coming next (see `PLAN.md`): incremental TypeScript and the pre-push tier,
-interactive confirm-fix for unsafe fixes, navigation/Expo-config rules, and the
-`explain` replay cache.
+Coming next (see `PLAN.md`): the React Navigation inspector, richer `ci` gates
+(coverage, no-any, max bundle), and a self-contained HTML report.
 
 ### v0.1 limitations (read before relying on it)
 
@@ -113,9 +136,10 @@ interactive confirm-fix for unsafe fixes, navigation/Expo-config rules, and the
   (interactive confirmation in a real terminal, since git hooks don't get a TTY
   on stdin) rather than silently during the commit. The pre-commit summary
   points you to it.
-- **RN performance/accessibility rules are heuristic** — a fast brace-aware JSX
-  scan, not full type-aware AST analysis. Expect the occasional false positive;
-  they're warnings, never commit blockers, and honor opt-outs.
+- **RN performance/accessibility rules are AST-grade when ESLint is present**,
+  falling back to a fast brace-aware JSX scan otherwise. The fallback can throw
+  the occasional false positive; either way they're warnings, never commit
+  blockers, and honor opt-outs.
 - **Rule docs links are disabled** until the docs site exists.
 - **Not yet dogfooded on a large app** — the ≤ 3s pre-commit budget is designed
   for and verified on small fixtures, but not yet measured against a big

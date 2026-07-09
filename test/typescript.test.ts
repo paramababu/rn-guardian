@@ -24,7 +24,10 @@ function makeTsProject(files: Record<string, string>): {
   fs.writeFileSync(
     path.join(dir, "tsconfig.json"),
     JSON.stringify({
-      compilerOptions: { strict: true, noEmit: true, skipLibCheck: true, module: "esnext", target: "es2020" },
+      // `types: []` keeps tsc from auto-loading every @types/* in the symlinked
+      // node_modules — the fixtures need none, and it makes the test hermetic
+      // (and fast) regardless of what dev-dependencies pull in.
+      compilerOptions: { strict: true, noEmit: true, skipLibCheck: true, module: "esnext", target: "es2020", types: [] },
       include: ["*.ts"],
     }),
   );

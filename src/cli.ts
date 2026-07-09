@@ -6,6 +6,7 @@ import { initCommand } from "./commands/init.js";
 import { installCommand, uninstallCommand } from "./commands/install.js";
 import { explainCommand } from "./commands/explain.js";
 import { fixCommand } from "./commands/fix.js";
+import { ciCommand } from "./commands/ci.js";
 import type { ProfileName } from "./core/config/profiles.js";
 
 interface ParsedArgs {
@@ -49,6 +50,7 @@ ${pc.bold("Commands:")}
   uninstall            Remove rn-guardian's managed hook blocks
   run                  Run checks for a tier ${pc.dim("(the hook calls this)")}
   check                Read-only scan of staged changes ${pc.dim('("what would fail?")')}
+  ci                   Full sweep over the PR diff + gates ${pc.dim("(GitHub annotations)")}
   fix                  Apply safe fixes; confirm & apply suggested ones ${pc.dim("(console.log, …)")}
   explain              Print the full problem→why→fix for each staged issue
   help                 Show this help
@@ -57,7 +59,10 @@ ${pc.bold("Options:")}
   --tier <commit|push|ci>   Which tier to run           ${pc.dim("(default: commit)")}
   --profile <name>          init: minimal|standard|strict|enterprise
   --yes                     init/fix: accept defaults / apply all, no prompts
-  --json                    Machine-readable output (run/check)
+  --json                    Machine-readable output (run/check/ci)
+  --base <ref>              ci: base ref to diff against ${pc.dim("(default: origin/main)")}
+  --all                     ci: scan every tracked file, not just the diff
+  --annotate                ci: emit GitHub annotations ${pc.dim("(auto-on in Actions)")}
 `;
 
 async function main(): Promise<number> {
@@ -79,6 +84,14 @@ async function main(): Promise<number> {
       return runCommand({ cwd, tier: tierFlag(flags), json: flags.json === true });
     case "check":
       return checkCommand({ cwd, tier: tierFlag(flags), json: flags.json === true });
+    case "ci":
+      return ciCommand({
+        cwd,
+        json: flags.json === true,
+        base: typeof flags.base === "string" ? flags.base : undefined,
+        all: flags.all === true,
+        annotate: flags.annotate === true,
+      });
     case "fix":
       return fixCommand({ cwd, yes: flags.yes === true });
     case "explain":

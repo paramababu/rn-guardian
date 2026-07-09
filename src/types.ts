@@ -113,6 +113,12 @@ export interface ProjectContext {
     /** e.g. "expo" | "bare" for react-native. */
     variant?: string;
     version?: string;
+    /**
+     * True when the injectable AST-grade ESLint rule pack can run (ESLint + a
+     * JSX-capable parser are resolvable in the project). When set, the RN
+     * JSX-scanner heuristics defer to the AST rules instead of double-reporting.
+     */
+    astRules?: boolean;
   };
 }
 

@@ -12,6 +12,33 @@ delivered. Dates are ISO (YYYY-MM-DD).
 
 _Nothing yet._
 
+## [0.4.0] — 2026-07-12
+
+The **Navigation Inspector** — the last deferred 0.2.0 item, unblocked by the
+AST infrastructure. Still two runtime deps.
+
+### Added
+- **`rn-navigation` check** (push tier; standard/strict/enterprise profiles).
+  Parses the whole project with the project's own `typescript` and cross-checks
+  screen registrations (`<Stack.Screen name="…">`, including the React
+  Navigation v7 static `screens:` API) against navigation calls
+  (`navigate`/`jumpTo`, plus `push`/`replace`/`popTo` on a `navigation`
+  receiver — `array.push("x")` can never false-positive):
+  - `navigation/unregistered-screen` (warning) — `navigate("Detials")` where no
+    navigator registers the name: the classic silently-dead button.
+  - `navigation/duplicate-screen` (error) — one navigator registering a name
+    twice, which React Navigation throws on at runtime.
+  - `navigation/unused-screen` (warning) — a stack screen nothing navigates to.
+    Tab/drawer screens are exempt (always reachable), as are initial routes.
+  Accuracy over reach: only string literals are tracked; any dynamically named
+  registration (or dynamic navigate target, for `unused`) switches the analysis
+  off entirely rather than guess. Projects without a direct `@react-navigation/*`
+  dependency (e.g. plain expo-router apps) are skipped. The whole project is
+  parsed for context (~40ms on a 220-file app — a regex pre-filter skips
+  non-navigation files) but issues are only reported on files in the current
+  scope, so a push never nags about pre-existing problems elsewhere.
+- New user-facing **Navigation Inspector** grouping in all reporters.
+
 ## [0.3.0] — 2026-07-12
 
 Completes the **0.3.0 "CI & reporting" milestone**: the remaining team-rule

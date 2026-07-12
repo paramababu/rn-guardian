@@ -15,6 +15,7 @@ export type InspectorId =
   | "performance" // RN render/list performance
   | "accessibility" // RN a11y
   | "security" // secrets, insecure storage, http
+  | "navigation" // React Navigation screen graph
   | "dependency" // heavy deps, duplicates
   | "types" // TypeScript
   | "tests"; // affected unit tests

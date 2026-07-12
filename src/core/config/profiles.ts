@@ -41,6 +41,7 @@ export const PROFILES: Record<ProfileName, ProfileDefinition> = {
       "circular-deps": { enabled: false, tier: "push" },
       "affected-tests": { enabled: false, tier: "push" },
       "expo-config": { enabled: false, tier: "push" },
+      "rn-navigation": { enabled: false, tier: "push" },
     },
   },
   standard: {
@@ -63,6 +64,7 @@ export const PROFILES: Record<ProfileName, ProfileDefinition> = {
       "circular-deps": { enabled: true, tier: "push" },
       "affected-tests": { enabled: true, tier: "push" },
       "expo-config": { enabled: true, tier: "push" },
+      "rn-navigation": { enabled: true, tier: "push" },
     },
   },
   strict: {
@@ -85,6 +87,7 @@ export const PROFILES: Record<ProfileName, ProfileDefinition> = {
       "circular-deps": { enabled: true, tier: "push" },
       "affected-tests": { enabled: true, tier: "push" },
       "expo-config": { enabled: true, tier: "push" },
+      "rn-navigation": { enabled: true, tier: "push" },
     },
   },
   enterprise: {
@@ -106,6 +109,7 @@ export const PROFILES: Record<ProfileName, ProfileDefinition> = {
       "circular-deps": { enabled: true, tier: "push" },
       "affected-tests": { enabled: true, tier: "push" },
       "expo-config": { enabled: true, tier: "push" },
+      "rn-navigation": { enabled: true, tier: "push" },
     },
   },
 };

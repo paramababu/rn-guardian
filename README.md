@@ -64,7 +64,8 @@ A slow hook gets `--no-verify`'d into the grave, so work is split by budget:
 
 - **pre-commit** (≤ 3s): Prettier, ESLint, console.log, merge markers, secrets,
   large assets — staged files only.
-- **pre-push** (~30s): TypeScript, tests, circular deps, the Bundle Advisor.
+- **pre-push** (~30s): TypeScript, tests, circular deps, the Bundle Advisor,
+  the Navigation Inspector.
 - **`rn-guardian ci`**: the full sweep, no budget.
 
 TypeScript is deliberately **not** at pre-commit by default — opt in with

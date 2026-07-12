@@ -7,6 +7,7 @@ import { accessibilityCheck } from "./checks/accessibility.js";
 import { eslintRulesCheck } from "./checks/eslint-rules.js";
 import { bundleAdvisorCheck } from "./checks/bundle-advisor.js";
 import { expoConfigCheck } from "./checks/expo-config.js";
+import { navigationCheck } from "./checks/navigation.js";
 
 /**
  * The React Native plugin — the first `Plugin` rn-guardian ships. Everything
@@ -31,5 +32,6 @@ export const reactNativePlugin: Plugin = {
     eslintRulesCheck,
     bundleAdvisorCheck,
     expoConfigCheck,
+    navigationCheck,
   ],
 };

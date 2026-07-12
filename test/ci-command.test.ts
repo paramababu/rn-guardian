@@ -31,6 +31,13 @@ describe("rn-guardian ci (end-to-end on a temp git repo)", () => {
   let repo: string;
 
   beforeAll(() => {
+    // `ci` auto-enables annotations + step summary inside GitHub Actions
+    // (inGithubActions()), which would prepend `::warning …` lines to the
+    // captured stdout and break JSON.parse — as it did when this suite itself
+    // ran in Actions. Pin the env so the tests behave the same everywhere.
+    vi.stubEnv("GITHUB_ACTIONS", "");
+    vi.stubEnv("GITHUB_STEP_SUMMARY", "");
+
     repo = fs.mkdtempSync(path.join(os.tmpdir(), "rn-guardian-ci-"));
     git(repo, "init", "-q");
     git(repo, "config", "user.email", "t@t.dev");
@@ -49,7 +56,10 @@ describe("rn-guardian ci (end-to-end on a temp git repo)", () => {
     git(repo, "commit", "-qm", "feat");
   });
 
-  afterAll(() => fs.rmSync(repo, { recursive: true, force: true }));
+  afterAll(() => {
+    vi.unstubAllEnvs();
+    fs.rmSync(repo, { recursive: true, force: true });
+  });
 
   it("scopes to the PR diff and reports the introduced warning", async () => {
     const { code, out } = await capture(() =>

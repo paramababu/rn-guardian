@@ -12,6 +12,41 @@ delivered. Dates are ISO (YYYY-MM-DD).
 
 _Nothing yet._
 
+## [0.3.0] — 2026-07-12
+
+Completes the **0.3.0 "CI & reporting" milestone**: the remaining team-rule
+gates and the self-contained HTML report. Still two runtime deps, still fully
+local.
+
+### Added
+- **`ci.coverage` gate** — minimum coverage from the project's own
+  `coverage/coverage-summary.json` (Jest/istanbul `json-summary`). A number
+  gates overall line coverage; an object gates individual metrics
+  (`{ "lines": 90, "branches": 75 }`). rn-guardian reads the artifact rather
+  than running Jest, so the gate is instant — and if the gate is enabled but the
+  summary is missing, it **fails with instructions** instead of silently
+  passing.
+- **`ci.noAny` gate** — scans the changed TypeScript files (AST, via the
+  project's own `typescript`) for explicit `any` and fails with `file:line`
+  locations. Strings/comments never false-positive; `.d.ts` files are skipped.
+- **`ci.maxBundleMb` gate** (+ `ci.bundlePath`) — fails when the built JS
+  bundle on disk exceeds the limit. Checks `ci.bundlePath` (file or directory,
+  source maps excluded) or auto-detects the usual Expo/bare artifact locations;
+  a missing artifact fails with build instructions.
+- **HTML report** (`src/core/reporter/html.ts`): `rn-guardian ci --html [path]`
+  writes a single self-contained file (inline CSS, no scripts, no external
+  assets) with summary tiles, gate failures, per-check timings, and the full
+  five-part explanation for every issue — grouped by Inspector, matching the
+  terminal reporter.
+
+### Fixed
+- **Runaway report size on generated files.** ESLint messages can quote the
+  offending source (`no-unused-expressions` on a minified file quotes the whole
+  expression), which ballooned a dogfood HTML report to 3 MB from a single
+  file. The eslint check now clamps message text at 500 chars, and the HTML
+  reporter defensively clamps any issue text at 2000 — the same report is now
+  45 KB.
+
 ## [0.2.2] — 2026-07-12
 
 Closes the long-open **0.1.2 acceptance criterion**: the pre-commit promise is

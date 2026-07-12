@@ -95,7 +95,10 @@ export const eslintCheck: Check = {
           file: rel,
           line: msg.line ?? 1,
           column: msg.column,
-          problem: msg.message,
+          // ESLint messages can quote the offending source (e.g.
+          // no-unused-expressions on a minified file quotes the whole
+          // expression) — clamp so one generated file can't bloat every report.
+          problem: clip(msg.message, 500),
           why: msg.ruleId
             ? `ESLint rule "${msg.ruleId}" flags this. Your project's config decided this pattern is worth catching.`
             : "ESLint could not parse the file — usually a syntax error.",
@@ -144,6 +147,10 @@ function eslintCachePath(packageRoot: string): string | null {
   } catch {
     return null;
   }
+}
+
+function clip(s: string, max: number): string {
+  return s.length > max ? s.slice(0, max) + "…" : s;
 }
 
 function eslintDocs(ruleId: string): string | undefined {

@@ -63,6 +63,7 @@ ${pc.bold("Options:")}
   --base <ref>              ci: base ref to diff against ${pc.dim("(default: origin/main)")}
   --all                     ci: scan every tracked file, not just the diff
   --annotate                ci: emit GitHub annotations ${pc.dim("(auto-on in Actions)")}
+  --html [path]             ci: write a self-contained HTML report ${pc.dim("(default: rn-guardian-report.html)")}
 `;
 
 async function main(): Promise<number> {
@@ -91,6 +92,12 @@ async function main(): Promise<number> {
         base: typeof flags.base === "string" ? flags.base : undefined,
         all: flags.all === true,
         annotate: flags.annotate === true,
+        html:
+          flags.html === true
+            ? "rn-guardian-report.html"
+            : typeof flags.html === "string"
+              ? flags.html
+              : undefined,
       });
     case "fix":
       return fixCommand({ cwd, yes: flags.yes === true });

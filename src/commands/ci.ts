@@ -23,6 +23,9 @@ import {
 } from "../core/reporter/github.js";
 import { loadConfig } from "../core/config/load.js";
 import { readGateConfig, evaluateGates } from "../core/ci/gates.js";
+import { toHtml } from "../core/reporter/html.js";
+import fs from "node:fs";
+import path from "node:path";
 
 export interface CiArgs {
   cwd: string;
@@ -33,6 +36,8 @@ export interface CiArgs {
   all: boolean;
   /** Force GitHub-annotation output even outside Actions. */
   annotate: boolean;
+  /** Write a self-contained HTML report to this path. */
+  html?: string;
 }
 
 /** The `ci` sweep runs every enabled check, across all tiers, with no budget. */
@@ -66,9 +71,10 @@ export async function ciCommand(args: CiArgs): Promise<number> {
   const { report, profile, fileCount } = engine;
 
   // Team-rule gates from the `ci` config block.
-  const gates = evaluateGates(
+  const gates = await evaluateGates(
     report.remaining,
     readGateConfig(loadConfig(engine.packageRoot).ci),
+    { packageRoot: engine.packageRoot, files },
   );
   const blocked = report.blocked || gates.blocked;
 
@@ -91,6 +97,15 @@ export async function ciCommand(args: CiArgs): Promise<number> {
       blocked,
       gateFailures: gates.failures.map((g) => `**${g.title}** — ${g.message}`),
     });
+  }
+
+  if (args.html) {
+    const htmlPath = path.resolve(args.cwd, args.html);
+    fs.writeFileSync(
+      htmlPath,
+      toHtml(report, gates, { profile, scope, generatedAt: new Date() }),
+    );
+    process.stderr.write(pc.dim(`HTML report → ${htmlPath}\n`));
   }
 
   if (args.json) {

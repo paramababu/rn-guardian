@@ -11,15 +11,31 @@
  * and times the pre-commit run — reporting wall-clock (what a developer feels)
  * against the budget.
  *
- * It does NOT install React Native's native toolchain: rn-guardian detects RN
- * from package.json and its checks never import RN, so listing `react-native` as
- * a dependency is enough to activate the plugin. This keeps the harness fast
- * while still exercising the genuine cost drivers (ESLint + file scanning).
+ * Two modes:
+ *
+ *   synthetic (default) — an RN-shaped scaffold. It does NOT install React
+ *   Native's native toolchain: rn-guardian detects RN from package.json and its
+ *   checks never import RN, so listing `react-native` as a dependency is enough
+ *   to activate the plugin. Fast, and still exercises the genuine cost drivers
+ *   (ESLint + file scanning).
+ *
+ *   full — a REAL generated app (`create-expo-app`, or the community CLI with
+ *   --app bare), with its own dependency install and its real ESLint config.
+ *   Generated screens top the app up to `--files` total source files. Slow
+ *   (one real `npm install`), but this is the run that validates the ≤3s
+ *   promise for the 0.1.2 acceptance criterion.
  *
  * Usage:
- *   node dogfood/harness.mjs [--files N] [--runs R] [--budget MS] [--keep] [--dir PATH]
+ *   node dogfood/harness.mjs [--mode synthetic|full] [--app expo|bare]
+ *                            [--files N] [--runs R] [--budget MS] [--keep] [--dir PATH]
  *
- *   --files N     number of staged source files to generate   (default 30)
+ *   --mode M      synthetic | full                             (default synthetic)
+ *   --app A       full mode app template: expo | bare          (default expo)
+ *   --files N     staged source files: generated count in synthetic mode,
+ *                 total target in full mode        (default 30 / 220 in full)
+ *   --staged N    full mode: files modified+staged for the timed delta commit
+ *                 (the budget-gated scenario; the initial all-files stage is
+ *                 timed once, informationally)                 (default 15)
  *   --runs R      timed pre-commit runs (first is cold)        (default 4)
  *   --budget MS   pre-commit wall-clock budget in ms           (default 3000)
  *   --keep        do not delete the workspace afterwards
@@ -27,7 +43,15 @@
  */
 
 import { execFileSync, spawnSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from "node:fs";
+import {
+  mkdtempSync,
+  mkdirSync,
+  writeFileSync,
+  readFileSync,
+  readdirSync,
+  existsSync,
+  rmSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -41,7 +65,10 @@ function arg(flag, fallback) {
   const v = process.argv[i + 1];
   return v && !v.startsWith("--") ? v : true;
 }
-const FILES = Number(arg("--files", 30));
+const MODE = String(arg("--mode", "synthetic")); // synthetic | full
+const APP = String(arg("--app", "expo")); // full mode: expo | bare
+const FILES = Number(arg("--files", MODE === "full" ? 220 : 30));
+const STAGED = Number(arg("--staged", 15));
 const RUNS = Number(arg("--runs", 4));
 const BUDGET = Number(arg("--budget", 3000));
 const KEEP = arg("--keep", false) === true;
@@ -127,8 +154,10 @@ function markReactNative(ws) {
   writeFileSync(p, JSON.stringify(pkg, null, 2));
 }
 
-// A realistic RN screen component. `dirty` seeds genuine issues the checks find.
-function componentSource(i, dirty) {
+// A realistic RN screen component. `dirty` seeds genuine issues the checks
+// find. `rev` marks edited revisions so a delta rewrite actually changes the
+// file content relative to the committed version.
+function componentSource(i, dirty, rev = 0) {
   const issues = dirty
     ? `
     console.log("render", props.id);
@@ -173,7 +202,7 @@ ${issues}
 }
 
 const styles = StyleSheet.create({ list: { paddingVertical: 12 } });
-`;
+${rev ? `// rev ${rev}\n` : ""}`;
 }
 
 function generateFiles(ws, n) {
@@ -184,6 +213,105 @@ function generateFiles(ws, n) {
       componentSource(i, i % 4 === 0),
     );
   }
+}
+
+// ---- full mode: real generated apps ----------------------------------------
+const SKIP_DIRS = new Set(["node_modules", ".git", ".expo", "android", "ios", "dist"]);
+
+function listSourceFiles(dir, root = dir, out = []) {
+  for (const e of readdirSync(dir, { withFileTypes: true })) {
+    if (e.isDirectory()) {
+      if (!SKIP_DIRS.has(e.name)) listSourceFiles(path.join(dir, e.name), root, out);
+    } else if (/\.(ts|tsx|js|jsx)$/.test(e.name)) {
+      out.push(path.relative(root, path.join(dir, e.name)));
+    }
+  }
+  return out;
+}
+
+/** Generate a real Expo app in ws; returns { appDir, genDir }. */
+function scaffoldFullExpo(ws) {
+  step("Generating real Expo app (create-expo-app)");
+  sh("npx", ["--yes", "create-expo-app@latest", "dogfood-app", "--template", "default", "--no-install"], ws);
+  const appDir = path.join(ws, "dogfood-app");
+
+  step("Installing the app's dependencies (the slow part)");
+  sh("npm", ["install", "--no-audit", "--no-fund"], appDir);
+
+  // The app's REAL ESLint config. Recent default templates ship
+  // eslint.config.js (eslint-config-expo); if this template version doesn't,
+  // write exactly what `npx expo lint` scaffolds.
+  if (!existsSync(path.join(appDir, "eslint.config.js"))) {
+    sh("npm", ["install", "-D", "--no-audit", "--no-fund", "eslint", "eslint-config-expo"], appDir);
+    writeFileSync(
+      path.join(appDir, "eslint.config.js"),
+      `// https://docs.expo.dev/guides/using-eslint/
+const { defineConfig } = require("eslint/config");
+const expoConfig = require("eslint-config-expo/flat");
+
+module.exports = defineConfig([expoConfig, { ignores: ["dist/*"] }]);
+`,
+    );
+  }
+
+  // Prettier, like most real teams run it.
+  sh("npm", ["install", "-D", "--no-audit", "--no-fund", "prettier"], appDir);
+  writeFileSync(path.join(appDir, ".prettierrc"), JSON.stringify({ semi: true }));
+
+  return { appDir, genDir: path.join("components", "generated") };
+}
+
+/** Generate a bare RN app in ws (exercises the eslintrc/v8 path); returns { appDir, genDir }. */
+function scaffoldFullBare(ws) {
+  step("Generating bare React Native app (@react-native-community/cli)");
+  sh(
+    "npx",
+    [
+      "--yes",
+      "@react-native-community/cli@latest",
+      "init",
+      "DogfoodBare",
+      "--skip-install",
+      "--skip-git-init",
+      "--install-pods",
+      "false",
+    ],
+    ws,
+  );
+  const appDir = path.join(ws, "DogfoodBare");
+
+  step("Installing the app's dependencies (the slow part)");
+  sh("npm", ["install", "--no-audit", "--no-fund"], appDir);
+
+  return { appDir, genDir: path.join("src", "generated") };
+}
+
+/**
+ * Rewrite the first `n` generated screens (same 1-in-4 dirty mix) and stage
+ * them — a typical developer commit against an already-committed base.
+ */
+function stageDelta(appDir, genDir, n) {
+  const files = [];
+  for (let i = 0; i < n; i++) {
+    const rel = path.join(genDir, `Screen${i}.tsx`);
+    writeFileSync(path.join(appDir, rel), componentSource(i, i % 4 === 0, 1));
+    files.push(rel);
+  }
+  sh("git", ["add", ...files], appDir);
+}
+
+/** Top the real app up to `target` total source files with generated screens. */
+function topUpFiles(appDir, genDir, target) {
+  const existing = listSourceFiles(appDir).length;
+  const need = Math.max(0, target - existing);
+  mkdirSync(path.join(appDir, genDir), { recursive: true });
+  for (let i = 0; i < need; i++) {
+    writeFileSync(
+      path.join(appDir, genDir, `Screen${i}.tsx`),
+      componentSource(i, i % 4 === 0), // ~1 in 4 dirty, like a normal commit
+    );
+  }
+  log(`app has ${existing} source files; generated ${need} more → ${existing + need} total`);
 }
 
 // ---- timing ---------------------------------------------------------------
@@ -220,7 +348,9 @@ let ok = false;
 try {
   log(`\x1b[1mrn-guardian dogfood harness\x1b[0m`);
   log(`workspace: ${ws}`);
-  log(`files: ${FILES} · runs: ${RUNS} · budget: ${BUDGET}ms`);
+  log(
+    `mode: ${MODE}${MODE === "full" ? ` (${APP})` : ""} · files: ${FILES} · runs: ${RUNS} · budget: ${BUDGET}ms`,
+  );
 
   step("Building & packing rn-guardian");
   sh("npm", ["run", "build"], REPO);
@@ -231,44 +361,76 @@ try {
   ).trim();
   log(`packed ${tgz}`);
 
-  step("Scaffolding RN-shaped project");
-  scaffold(ws);
-  generateFiles(ws, FILES);
+  let app = ws; // the project rn-guardian runs in (a subdir of ws in full mode)
+  let genDir; // where full mode's generated screens live (delta commits reuse it)
+  if (MODE === "full") {
+    const scaffolded = APP === "bare" ? scaffoldFullBare(ws) : scaffoldFullExpo(ws);
+    app = scaffolded.appDir;
+    genDir = scaffolded.genDir;
+    topUpFiles(app, genDir, FILES);
+  } else {
+    step("Scaffolding RN-shaped project");
+    scaffold(ws);
+    generateFiles(ws, FILES);
 
-  step("Installing toolchain (eslint, typescript-eslint, prettier)");
-  sh("npm", ["install", "--no-audit", "--no-fund"], ws);
-  sh("npm", ["install", "--no-save", "--no-audit", "--no-fund", path.join(ws, tgz)], ws);
-  markReactNative(ws); // add react-native to the manifest for detection
+    step("Installing toolchain (eslint, typescript-eslint, prettier)");
+    sh("npm", ["install", "--no-audit", "--no-fund"], ws);
+  }
+
+  step("Installing packed rn-guardian tarball");
+  sh("npm", ["install", "--no-save", "--no-audit", "--no-fund", path.join(ws, tgz)], app);
+  if (MODE !== "full") markReactNative(ws); // add react-native to the manifest for detection
 
   step("Initializing git & staging files");
-  sh("git", ["init", "-q"], ws);
-  sh("git", ["config", "user.email", "dogfood@local"], ws);
-  sh("git", ["config", "user.name", "dogfood"], ws);
-  sh("git", ["add", "-A"], ws);
+  if (!existsSync(path.join(app, ".git"))) sh("git", ["init", "-q"], app);
+  sh("git", ["config", "user.email", "dogfood@local"], app);
+  sh("git", ["config", "user.name", "dogfood"], app);
+  sh("git", ["add", "-A"], app);
 
   step("Configuring rn-guardian (standard profile)");
-  const binDir = path.join(ws, "node_modules", ".bin");
-  sh(process.execPath, [path.join(binDir, "rn-guardian"), "init", "--yes"], ws);
+  const binDir = path.join(app, "node_modules", ".bin");
+  sh(process.execPath, [path.join(binDir, "rn-guardian"), "init", "--yes"], app);
   // init writes a config file; restage so the timed run sees a clean stage set.
-  sh("git", ["add", "-A"], ws);
+  sh("git", ["add", "-A"], app);
 
-  step(`Timing ${RUNS} pre-commit runs (autofix off in this non-TTY harness)`);
-  const times = [];
-  for (let r = 0; r < RUNS; r++) {
-    const { wallMs, parsed, stdout, stderr, status, error } = timeRun(ws, binDir);
-    if (!parsed) {
-      log(`  run ${r + 1}: \x1b[31mFAILED\x1b[0m (exit ${status})`);
-      log(`    stdout(${(stdout || "").length}b): ${JSON.stringify((stdout || "").slice(0, 200))}`);
-      if (error) log(`    spawn error: ${error.message}`);
-      if (stderr) log(`    stderr: ${stderr.split("\n").slice(0, 8).join(" | ")}`);
-      throw new Error("pre-commit run did not produce JSON output");
+  function timedRuns(runs, coldLabel) {
+    const collected = [];
+    for (let r = 0; r < runs; r++) {
+      const { wallMs, parsed, stdout, stderr, status, error } = timeRun(app, binDir);
+      if (!parsed) {
+        log(`  run ${r + 1}: \x1b[31mFAILED\x1b[0m (exit ${status})`);
+        log(`    stdout(${(stdout || "").length}b): ${JSON.stringify((stdout || "").slice(0, 200))}`);
+        if (error) log(`    spawn error: ${error.message}`);
+        if (stderr) log(`    stderr: ${stderr.split("\n").slice(0, 8).join(" | ")}`);
+        throw new Error("pre-commit run did not produce JSON output");
+      }
+      collected.push(wallMs);
+      const label = r === 0 ? (coldLabel ?? "cold") : "warm";
+      log(
+        `  run ${r + 1} (${label}): ${wallMs.toFixed(0)}ms wall · ` +
+          `engine ${parsed.durationMs}ms · ${parsed.summary.remaining} findings in ${parsed.fileCount} files`,
+      );
     }
-    times.push(wallMs);
-    const label = r === 0 ? "cold" : "warm";
-    log(
-      `  run ${r + 1} (${label}): ${wallMs.toFixed(0)}ms wall · ` +
-        `engine ${parsed.durationMs}ms · ${parsed.summary.remaining} findings in ${parsed.fileCount} files`,
-    );
+    return collected;
+  }
+
+  let times;
+  if (MODE === "full") {
+    // Worst case first: the initial commit stages every file. Informational —
+    // it also warms rn-guardian's ESLint result cache, exactly like a real
+    // repo where the base has been committed before.
+    step("Timing initial full-stage run (every file staged — worst case, informational)");
+    timedRuns(1, "full stage");
+
+    step(`Committing base & staging a typical ${STAGED}-file delta`);
+    sh("git", ["commit", "-q", "-m", "base", "--no-verify"], app);
+    stageDelta(app, genDir, STAGED);
+
+    step(`Timing ${RUNS} pre-commit runs on the delta (the budget-gated scenario)`);
+    times = timedRuns(RUNS);
+  } else {
+    step(`Timing ${RUNS} pre-commit runs (autofix off in this non-TTY harness)`);
+    times = timedRuns(RUNS);
   }
 
   const warm = times.slice(1);

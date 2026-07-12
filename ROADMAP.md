@@ -19,13 +19,18 @@ Status legend: ⬜ not started · 🔶 in progress · ✅ done
 Goal: prove the tool on a genuinely large app and cut false-positive noise before
 adding surface area.
 
-### ⬜ Real-world dogfood on a full app
-- Generate a real Expo app (`npx create-expo-app`) and a bare RN app; install the
-  packed tarball; run `init` and real commits.
-- Extend `dogfood/harness.mjs` with a `--mode full` that (optionally) drives a
-  real generated app instead of the synthetic scaffold.
-- **Acceptance:** measured warm pre-commit ≤ 3s on ≥ 200 source files with the
-  app's real ESLint config; publish the numbers in the CHANGELOG.
+### ✅ Real-world dogfood on a full app
+- `dogfood/harness.mjs --mode full [--app expo|bare]` drives a real generated
+  app (create-expo-app / community CLI): real dependency install, the app's own
+  ESLint config, 220 source files, packed-tarball install, `init`, then times
+  the initial all-files stage (informational) and a typical `--staged` 15-file
+  delta commit (budget-gated).
+- Follow-on fix it forced: the `eslint` check now uses ESLint's result cache
+  (`src/core/checks/eslint.ts`) — repeat lints of unchanged files are free.
+- Also surfaced (and fixed): the bare RN template pins `prettier@2.8.8`, which
+  the old `prettier@">=3"` peer range refused — install failed outright.
+- **Acceptance met:** warm delta-commit median **974ms** (Expo) / **1063ms**
+  (bare RN) on real 220-file apps; numbers published in the CHANGELOG (0.2.2).
 
 ### ✅ Ignore file support
 - `.rn-guardianignore` (gitignore syntax) honored by `core/git/staged.ts` when

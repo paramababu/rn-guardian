@@ -12,6 +12,50 @@ delivered. Dates are ISO (YYYY-MM-DD).
 
 _Nothing yet._
 
+## [0.2.2] — 2026-07-12
+
+Closes the long-open **0.1.2 acceptance criterion**: the pre-commit promise is
+now measured on a *real generated app*, not just the synthetic scaffold.
+
+### Added
+- **Dogfood harness full mode** (`node dogfood/harness.mjs --mode full`).
+  Generates a real Expo app (`create-expo-app`, default template) — or a bare RN
+  app with `--app bare` — installs its real dependencies, tops it up to 220
+  source files with realistic screens, installs the packed tarball, runs `init`,
+  and times two scenarios: the initial all-files stage (worst case,
+  informational) and a typical `--staged` 15-file delta commit (budget-gated).
+
+### Changed
+- The **`eslint` check now uses ESLint's result cache**
+  (`node_modules/.cache/rn-guardian/eslint-cache.json`), so unchanged files are
+  not re-linted on the next commit attempt. On the dogfood Expo app (206 staged
+  files, real `eslint-config-expo`), the check dropped from ~16s cold to ~4s on
+  a repeat run — and ESLint invalidates the cache itself when file contents or
+  the resolved config change. Best-effort: an uncreatable cache dir never breaks
+  the check.
+
+### Fixed
+- **Installable in bare React Native apps.** The community-CLI template pins
+  `prettier@2.8.8`, and our `prettier@">=3"` optional peer range made
+  `npm install rn-guardian` fail outright there (found by the full-mode bare-app
+  dogfood). The format check only uses `resolveConfig` / `getFileInfo` /
+  `check` / `format`, which behave identically under `await` in Prettier 2's
+  sync API — the peer range is now `">=2"`.
+
+### Measured (0.1.2 acceptance)
+Real generated apps, 220 source files each, standard profile, the app's own
+lint setup, Apple M1 / 8 GB. Budget: warm delta-commit ≤ 3000ms.
+
+| scenario (wall clock) | Expo (`create-expo-app`, flat config) | bare RN (community CLI, eslintrc + prettier 2) |
+| --- | --- | --- |
+| typical 15-file delta commit, warm median | **974ms** ✓ | **1063ms** ✓ |
+| typical 15-file delta commit, cold | 2097ms | 1555ms |
+| initial commit, every file staged (informational) | 9288ms (206 files) | 4500ms (266 files) |
+
+False-positive noise check: across both apps the templates' own files produced
+**one** finding total (a Prettier style disagreement on Expo) — every other
+finding was deliberately seeded.
+
 ## [0.2.1] — 2026-07-09
 
 First cut of the **0.3.0 "CI & reporting" milestone**: the `rn-guardian ci`

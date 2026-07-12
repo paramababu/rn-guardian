@@ -107,8 +107,13 @@ Checks at `tier: "push"`, all dependency-free (stayed at 2 runtime deps):
 - ✅ **Expo** `app.json` — cross-checks sensitive Android permissions against
   missing iOS usage-description strings.
   `src/plugins/react-native/checks/expo-config.ts`. (0.1.4)
-- ⬜ React Navigation: unregistered / duplicate / unused screen detection —
-  wants an AST for accuracy; deferred with the ESLint rule pack.
+- ✅ React Navigation _(0.4.0)_: `rn-navigation` check
+  (`src/plugins/react-native/checks/navigation.ts`, push tier) — whole-project
+  TS-AST cross-check of screen registrations (JSX + v7 static API) vs
+  navigation calls. Rules: `unregistered-screen` (warn), `duplicate-screen`
+  (error), `unused-screen` (warn; stacks only, initial routes exempt). Dynamic
+  names switch the affected analyses off — accuracy over reach. New
+  "Navigation Inspector" grouping. Tests: `test/navigation.test.ts`.
 
 ---
 

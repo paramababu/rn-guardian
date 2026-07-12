@@ -8,6 +8,7 @@ export const INSPECTORS: Record<InspectorId, InspectorMeta> = {
   performance: { id: "performance", title: "Performance Inspector" },
   accessibility: { id: "accessibility", title: "Accessibility Inspector" },
   security: { id: "security", title: "Security Inspector" },
+  navigation: { id: "navigation", title: "Navigation Inspector" },
   dependency: { id: "dependency", title: "Dependency Advisor" },
   types: { id: "types", title: "Type Checking" },
   tests: { id: "tests", title: "Affected Tests" },

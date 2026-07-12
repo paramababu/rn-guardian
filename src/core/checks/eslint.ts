@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import type { AutoFix, Check, Issue, Severity } from "../../types.js";
 import { importLocal } from "../util/resolve-local.js";
 import { sourceFiles } from "../util/files.js";
@@ -54,7 +56,17 @@ export const eslintCheck: Check = {
     }
 
     const { ESLint } = mod;
-    const eslint = new ESLint({ cwd: ctx.packageRoot, errorOnUnmatchedPattern: false });
+    // ESLint's result cache: unchanged files aren't re-linted on the next
+    // commit attempt, which is what keeps "fix two files and retry" fast on
+    // large staged sets. ESLint invalidates entries itself when file contents
+    // or the resolved config change. Best-effort: an uncreatable cache dir
+    // (read-only FS) must never break the check.
+    const cacheLocation = eslintCachePath(ctx.packageRoot);
+    const eslint = new ESLint({
+      cwd: ctx.packageRoot,
+      errorOnUnmatchedPattern: false,
+      ...(cacheLocation ? { cache: true, cacheLocation } : {}),
+    });
     const results = await eslint.lintFiles(targets);
 
     const issues: Issue[] = [];
@@ -121,6 +133,17 @@ function makeFix(
       return results.some((r) => r.output !== undefined);
     },
   };
+}
+
+/** Cache file under node_modules/.cache/rn-guardian; null if uncreatable. */
+function eslintCachePath(packageRoot: string): string | null {
+  const dir = path.join(packageRoot, "node_modules", ".cache", "rn-guardian");
+  try {
+    fs.mkdirSync(dir, { recursive: true });
+    return path.join(dir, "eslint-cache.json");
+  } catch {
+    return null;
+  }
 }
 
 function eslintDocs(ruleId: string): string | undefined {

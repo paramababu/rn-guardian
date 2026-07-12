@@ -124,13 +124,21 @@ Checks at `tier: "push"`, all dependency-free (stayed at 2 runtime deps):
   `$GITHUB_STEP_SUMMARY` table. `src/core/reporter/github.ts`. (0.2.1)
 - ✅ Team-rule gates `ci.failOn` / `ci.maxWarnings`. `src/core/ci/gates.ts`. A
   tripped gate exits non-zero and annotates the PR. **Acceptance met.** (0.2.1)
-- ⬜ Remaining gates: `ci.coverage` (parse the project's Jest coverage summary),
-  `ci.noAny`, `ci.maxBundleMb` — each needs heavier machinery / project tooling.
+- ✅ Remaining gates (0.3.0): `ci.coverage` reads the project's own
+  `coverage/coverage-summary.json` (number = overall lines, object = per
+  metric); `ci.noAny` AST-scans changed TS files via the project's `typescript`
+  and reports `file:line`; `ci.maxBundleMb` stats the built bundle
+  (`ci.bundlePath` or auto-detected Expo/bare locations, maps excluded).
+  Artifact-backed gates fail with instructions when their artifact is missing —
+  an enabled gate never silently passes.
 - Tests: `test/{ci-command,ci-gates,github-reporter}.test.ts`.
 
-### ⬜ HTML report
-- `src/core/reporter/html.ts` — self-contained HTML (inline CSS) summarizing a
-  run, written to `rn-guardian-report.html`.
+### ✅ HTML report _(0.3.0)_
+- `src/core/reporter/html.ts` — one self-contained file (inline CSS, no
+  scripts), summary tiles + gates + per-check table + five-part issues grouped
+  by Inspector. `ci --html [path]`, default `rn-guardian-report.html`.
+  Issue text is clamped so a minified file in the diff can't balloon the report
+  (found by dogfooding: one ESLint message quoted a 3 MB expression).
 
 ---
 
